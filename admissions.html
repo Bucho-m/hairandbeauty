@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate and Send PDF</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #F62681;
+      color: #000000;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .form-container {
+      background-color: #F62681;
+      padding: 20px;
+      border-radius: 10px;
+      /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); */
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .form-container h1 {
+      color: #ffffff;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .form-container label {
+      display: block;
+      margin-bottom: 5px;
+      color: #ffffff;
+    }
+
+    .form-container input,
+    .form-container select,
+    .form-container button {
+      width: 95%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .form-container input,
+    .form-container select {
+      background-color: #ffffff;
+      color: #000000;
+    }
+
+    .form-container button {
+      background-color: #000000;
+      color: #ffffff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-left: 2%;
+    }
+
+    .form-container button:hover {
+      background-color: #333333;
+    }
+  </style>
+</head>
+<body>
+  <!--<button id="generate-pdf">Generate PDF</button>-->
+  <div class="form-container">
+    <h1>Student Application Form</h1>
+    <form id="application-form">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" placeholder="Enter your name" required>
+
+      <label for="phone">Phone Number</label>
+      <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="Enter your email" required>
+
+      <label for="course">Course</label>
+      <select id="course" name="course" required>
+        <option value="">Select a course</option>
+        <option value="Nail Technician">Nail Technician</option>
+        <option value="Hair Braiding">Hair Braiding</option>
+        <option value="Lash Technician">Lash Technician</option>
+        <option value="Make-Up">Make-Up</option>
+      </select>
+
+      <label for="housing">Do you need housing?</label>
+      <select id="housing" name="housing" required>
+        <option value="">Select an option</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
+
+      <label for="attendance">When can you attend?</label>
+      <input type="date" id="attendance" name="attendance" required>
+
+      <button type="submit">Submit Application</button>
+    </form>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    document.getElementById('application-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+  
+      // Get form data
+      const name = document.getElementById('name').value;
+      const phone = document.getElementById('phone').value;
+      const email = document.getElementById('email').value;
+      const course = document.getElementById('course').value;
+      const housing = document.getElementById('housing').value;
+      const attendance = document.getElementById('attendance').value;
+  
+      // Create a new jsPDF instance
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+  
+      // Add a header
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor('#F62681'); // Pink header color
+      doc.setFontSize(18);
+
+      // Center the header text
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const headerText = 'Student Application Form';
+      const textWidth = doc.getTextWidth(headerText);
+      const xPosition = (pageWidth - textWidth) / 2;
+
+      doc.text(headerText, xPosition, 10);
+
+  
+      // Add table content
+      const tableData = [
+        ['Field', 'Value'],
+        ['Name', name],
+        ['Phone Number', phone],
+        ['Email', email],
+        ['Course', course],
+        ['Housing Needed', housing],
+        ['Attendance Date', attendance]
+      ];
+  
+      doc.autoTable({
+        startY: 20, // Start table below the header
+        head: [['Field', 'Value']],
+        body: tableData.slice(1), // Exclude the header row in the body
+        theme: 'grid',
+        headStyles: {
+          fillColor: '#F62681', // Pink background for the header
+          textColor: '#FFFFFF', // White text for the header
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fillColor: '#FFFFFF', // White background for table rows
+          textColor: '#000000', // Black text for table rows
+        },
+        alternateRowStyles: {
+          fillColor: '#F8F8F8', // Light grey for alternate rows
+        },
+        margin: { top: 30 }, // Add spacing between header and table
+      });
+  
+      // Generate a Base64 string and send it to the server
+      const pdfBlob = doc.output('blob');
+      const reader = new FileReader();
+      reader.readAsDataURL(pdfBlob);
+      reader.onloadend = function () {
+        const base64Pdf = reader.result.split(',')[1]; // Remove the data URI prefix
+        sendPdfToServer(base64Pdf);
+      };
+    });
+  
+    function sendPdfToServer(pdfData) {
+      const formData = new FormData();
+      formData.append('pdf', pdfData);
+  
+      fetch('send_pdf.php', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.text(); // Use text() to handle non-JSON responses
+    })
+    .then(data => {
+      try {
+        const jsonResponse = JSON.parse(data);
+        if (jsonResponse.status === 'success') {
+          alert('PDF sent successfully!');
+        } else {
+          alert('Error: ' + jsonResponse.message);
+        }
+      } catch (error) {
+        console.error('Response is not JSON:', data);
+        alert('An unexpected error occurred. Check the console for details.');
+      }
+    })
+    .catch(error => {
+      console.error('Fetch error:', error);
+      alert('Failed to send the PDF. Please try again.');
+    });
+  }
+  </script>
+  
+
+</body>
+</html>
